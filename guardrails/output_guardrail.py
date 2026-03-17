@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from guardrails.input_guardrail import NeMoGuardrailsLayer
 
 
@@ -20,7 +22,7 @@ class OutputGuardrail:
         self.allowed_subjects = set(policies.get("allowed_subjects", ["math", "history"]))
 
     def validate(self, response: str, topic: str | None) -> str:
-        cleaned_response = response.strip()
+        cleaned_response = self._sanitize_response(response).strip()
         normalized_response = cleaned_response.lower()
 
         if not cleaned_response:
@@ -33,3 +35,20 @@ class OutputGuardrail:
             return "I cannot provide that response safely. Please ask a math or history homework question."
 
         return cleaned_response
+
+    @staticmethod
+    def _sanitize_response(response: str) -> str:
+        cleaned = response or ""
+
+        # Convert common display-style LaTeX wrappers into plain text so the UI
+        # does not show raw control sequences.
+        cleaned = re.sub(r"\\boxed\{([^{}]+)\}", r"\1", cleaned)
+        cleaned = cleaned.replace(r"\[", "").replace(r"\]", "")
+        cleaned = cleaned.replace(r"\(", "").replace(r"\)", "")
+        cleaned = cleaned.replace("$$", "")
+        cleaned = cleaned.replace("$", "")
+
+        cleaned = re.sub(r"\n\s*\[\s*\n", "\n", cleaned)
+        cleaned = re.sub(r"\n\s*\]\s*\n", "\n", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned

@@ -33,15 +33,30 @@ class InputGuardrail:
 
     def __init__(self, guardrails_layer: NeMoGuardrailsLayer) -> None:
         self.guardrails_layer = guardrails_layer
+        policies = guardrails_layer.policies
         self.reject_message = guardrails_layer.policies.get(
             "reject_message",
             "Sorry, I can only help with math or history homework questions.",
         )
+        self.unsafe_message = policies.get(
+            "unsafe_message",
+            "I cannot help with unsafe requests.",
+        )
+        self.local_trivia_message = policies.get(
+            "local_trivia_message",
+            (
+                "Sorry, I can help with broad math or history homework topics, "
+                "but not niche local or institutional trivia."
+            ),
+        )
         self.unsafe_patterns = self._normalize_patterns(
-            guardrails_layer.policies.get("unsafe_patterns", [])
+            policies.get("unsafe_patterns", [])
         )
         self.unrelated_patterns = self._normalize_patterns(
-            guardrails_layer.policies.get("clearly_unrelated_patterns", [])
+            policies.get("clearly_unrelated_patterns", [])
+        )
+        self.local_trivia_patterns = self._normalize_patterns(
+            policies.get("local_trivia_patterns", [])
         )
 
     def validate(self, query: str) -> GuardrailDecision:
@@ -54,14 +69,21 @@ class InputGuardrail:
                 response="Please ask a math or history homework question.",
             )
 
-        if self._matches_any(normalized_query, self.unsafe_patterns):
+        if self._is_unsafe_query(normalized_query):
             return GuardrailDecision(
                 allowed=False,
                 reason="unsafe_query",
-                response="I cannot help with unsafe requests.",
+                response=self.unsafe_message,
             )
 
-        if self._matches_any(normalized_query, self.unrelated_patterns):
+        if self._is_local_trivia_query(normalized_query):
+            return GuardrailDecision(
+                allowed=False,
+                reason="local_trivia_query",
+                response=self.local_trivia_message,
+            )
+
+        if self._is_non_homework_query(normalized_query):
             return GuardrailDecision(
                 allowed=False,
                 reason="clearly_unrelated_query",
@@ -81,3 +103,168 @@ class InputGuardrail:
     @staticmethod
     def _matches_any(text: str, patterns: list[str]) -> bool:
         return any(pattern in text for pattern in patterns)
+
+    @classmethod
+    def _contains_any(cls, text: str, terms: tuple[str, ...]) -> bool:
+        return cls._matches_any(text, list(terms))
+
+    def _is_unsafe_query(self, text: str) -> bool:
+        if self._matches_any(text, self.unsafe_patterns):
+            return True
+
+        dangerous_objects = (
+            "firecracker",
+            "explosive",
+            "bomb",
+            "molotov",
+            "poison",
+            "weapon",
+            "gun",
+            "knife",
+        )
+        dangerous_actions = (
+            "throw",
+            "set off",
+            "light",
+            "ignite",
+            "detonate",
+            "build",
+            "make",
+            "use",
+            "hurt",
+            "kill",
+            "attack",
+            "shoot",
+            "stab",
+        )
+        risky_contexts = (
+            "busy street",
+            "crowd",
+            "school",
+            "classroom",
+            "public place",
+            "someone",
+            "people",
+        )
+
+        if self._contains_any(text, dangerous_objects) and self._contains_any(
+            text, dangerous_actions
+        ):
+            return True
+
+        if "what would happen if" in text and self._contains_any(text, dangerous_objects):
+            return True
+
+        return self._contains_any(text, dangerous_objects) and self._contains_any(
+            text, risky_contexts
+        )
+
+    def _is_non_homework_query(self, text: str) -> bool:
+        if self._matches_any(text, self.unrelated_patterns):
+            return True
+
+        planning_verbs = (
+            "best way",
+            "recommend",
+            "suggest",
+            "plan",
+            "book",
+            "choose",
+            "where should i",
+        )
+        travel_terms = (
+            "travel",
+            "trip",
+            "flight",
+            "airport",
+            "hotel",
+            "vacation",
+            "holiday",
+            "restaurant",
+            "tour",
+        )
+        lifestyle_terms = (
+            "movie",
+            "tv show",
+            "celebrity",
+            "shopping",
+            "buy",
+            "purchase",
+            "recipe",
+            "dating",
+            "relationship",
+            "fashion",
+        )
+
+        if self._contains_any(text, planning_verbs) and (
+            self._contains_any(text, travel_terms)
+            or self._contains_any(text, lifestyle_terms)
+        ):
+            return True
+
+        return self._contains_any(text, lifestyle_terms) and not self._contains_any(
+            text,
+            (
+                "history",
+                "historical",
+                "math",
+                "equation",
+                "calculate",
+            ),
+        )
+
+    def _is_local_trivia_query(self, text: str) -> bool:
+        if self._matches_any(text, self.local_trivia_patterns):
+            return True
+
+        institution_terms = (
+            "university",
+            "school",
+            "college",
+            "campus",
+            "department",
+            "institute",
+            "company",
+            "corporation",
+            "committee",
+            "office",
+        )
+        local_markers = (
+            "hong kong",
+            "hkust",
+            "my school",
+            "our school",
+            "this university",
+            "local university",
+        )
+        position_terms = (
+            "president",
+            "vice chancellor",
+            "vice-chancellor",
+            "chancellor",
+            "dean",
+            "principal",
+            "rector",
+            "headmaster",
+            "founder",
+        )
+        fact_request_terms = (
+            "who was",
+            "who is",
+            "when was",
+            "first",
+            "founded",
+            "established",
+            "created",
+        )
+
+        if (
+            self._contains_any(text, institution_terms)
+            and self._contains_any(text, position_terms)
+            and self._contains_any(text, fact_request_terms)
+        ):
+            return True
+
+        return self._contains_any(text, local_markers) and self._contains_any(
+            text, institution_terms
+        )

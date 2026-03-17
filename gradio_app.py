@@ -20,7 +20,7 @@ SESSION_APPS: MutableMapping[str, SmartTutorApp] = {}
 
 def _build_examples() -> list[list[str]]:
     return [
-        ["I am a year 1 student. What is 3 + 5?"],
+        ["I am a first-year university student. What is 3 + 5?"],
         ["Explain the causes of World War I."],
         ["Give me 3 practice questions on fractions."],
         ["Quiz me on the French Revolution."],
@@ -71,14 +71,6 @@ def build_ui() -> gr.Blocks:
             """
             # Smart Tutor
             A multi-turn homework tutoring assistant for math and history only.
-
-            Supported features:
-            - Multi-turn conversation
-            - Homework filtering
-            - Math and history routing
-            - Difficulty-aware explanations
-            - Exercise generation
-            - Conversation summarization
             """
         )
 

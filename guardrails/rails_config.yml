@@ -15,6 +15,8 @@ rails:
 
 policies:
   reject_message: "Sorry, I can only help with math or history homework questions."
+  unsafe_message: "I cannot help with unsafe requests."
+  local_trivia_message: "Sorry, I can help with broad math or history homework topics, but not niche local or institutional trivia."
   allowed_subjects:
     - math
     - history
@@ -26,20 +28,36 @@ policies:
   unsafe_patterns:
     - build a bomb
     - make a bomb
+    - throw a firecracker
+    - set off a firecracker
+    - light a firecracker
+    - explosive in a busy street
     - hurt someone
     - self harm
     - suicide
     - kill someone
     - hack a server
     - steal passwords
+    - weapon instructions
   clearly_unrelated_patterns:
     - travel plan
     - plan a trip
+    - best way to travel
+    - book a flight
+    - hotel recommendation
     - vacation ideas
     - restaurant recommendation
     - movie recommendation
     - sports betting
     - celebrity gossip
+    - shopping advice
+    - relationship advice
+  local_trivia_patterns:
+    - hong kong university of science and technology
+    - hkust
+    - first president of a university
+    - dean of a university
+    - vice chancellor of a university
   output_blocked_patterns:
     - weapon instructions
     - illegal instructions
