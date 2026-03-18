@@ -111,3 +111,10 @@ python -m smart_tutor.main
 - The app uses a NeMo-style guardrail configuration file in `smart_tutor/guardrails/rails_config.yml`.
 - Conversation memory stores both user and assistant turns.
 - If a follow-up question is short, topic routing can reuse the last known subject.
+
+## To be adress
+1. classfication（模糊边界问题修改）
+2. input_guardrail.py修改（太小的历史问题不算历史问题比如说香港科技大学的第一人校长不算历史问题）—— 仍需测试
+3. math_tutor.py超过用户水平的题目依旧回答
+4. history_tutor.py 对于让我们来谈谈关于XXX的历史问题无法解决
+5. 边界测试 + records
