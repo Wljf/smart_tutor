@@ -22,6 +22,7 @@ def _build_examples():
         ["Explain the causes of World War I."],
         ["Give me 3 practice questions on fractions."],
         ["Quiz me on the French Revolution."],
+        ["Explain change over time"],  # 测试 unclear
     ]
 
 
@@ -32,10 +33,9 @@ def _get_app(session_id: str) -> SmartTutorApp:
         SESSION_APPS[session_id] = app
     return app
 
-
-# Streaming + cursor + loading
 def chat(user_message, chat_history, request: gr.Request):
     session_id = request.session_hash
+
     if not user_message.strip():
         yield "", chat_history or [], "➤"
         return
@@ -43,29 +43,41 @@ def chat(user_message, chat_history, request: gr.Request):
     tutor_app = _get_app(session_id)
     history = chat_history or []
 
+    # 用户消息
     history.append({"role": "user", "content": user_message})
     history.append({"role": "assistant", "content": ""})
 
-    # loading state
+    # loading 状态
     yield "", history, "⏳"
 
     try:
-        full_response = tutor_app.handle_query(user_message)
+        response, debug = tutor_app.handle_query(user_message)
+
+        debug_line = f"""
+<div style="font-size: 13px; color: gray;">
+  <b>Topic:</b> {debug['topic']} &nbsp;&nbsp;
+  <b>Guardrail:</b> {debug['guardrail']} &nbsp;&nbsp;
+  <b>Decision:</b> {debug['decision']}
+</div>
+"""
+
+        full_response = debug_line + "<br><br>" + response
+
     except Exception as exc:
         full_response = f"⚠️ Application error: {exc}"
 
+    # streaming 输出（打字效果）
     current_text = ""
     for i, char in enumerate(full_response):
         current_text += char
 
-        # blinking cursor
         cursor = "▌" if i % 2 == 0 else ""
         history[-1]["content"] = current_text + cursor
 
         time.sleep(0.01)
         yield "", history, "⏳"
 
-    # final clean (remove cursor + reset button)
+    # 最终输出（去掉光标）
     history[-1]["content"] = current_text
     yield "", history, "➤"
 
@@ -146,14 +158,17 @@ textarea:focus {
 #send-btn:active {
     transform: scale(0.92);
 }
-
 """
 
 
+# -----------------------------
+# UI 构建
+# -----------------------------
 def build_ui():
     with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Soft()) as demo:
+
         gr.Markdown("""
-        # CSIT5900 Smart Tutor
+        # 🎓 Smart Tutor
         <center style='color:gray;'>Math & History Assistant</center>
         """)
 
@@ -178,12 +193,25 @@ def build_ui():
             label="Try examples",
         )
 
-        send_button.click(chat, [message_box, chatbot], [message_box, chatbot, send_button])
-        message_box.submit(chat, [message_box, chatbot], [message_box, chatbot, send_button])
+        # 绑定事件
+        send_button.click(
+            chat,
+            [message_box, chatbot],
+            [message_box, chatbot, send_button]
+        )
+
+        message_box.submit(
+            chat,
+            [message_box, chatbot],
+            [message_box, chatbot, send_button]
+        )
 
     return demo
 
 
+# -----------------------------
+# Main
+# -----------------------------
 def main():
     demo = build_ui()
     demo.queue()
