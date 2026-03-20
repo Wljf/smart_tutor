@@ -29,36 +29,45 @@ class NeMoGuardrailsLayer:
 
 
 class InputGuardrail:
-    """Rejects clearly unsafe or obviously unrelated requests before routing."""
+    """Rejects unsafe, unrelated, and low-value local trivia queries."""
 
     def __init__(self, guardrails_layer: NeMoGuardrailsLayer) -> None:
         self.guardrails_layer = guardrails_layer
         policies = guardrails_layer.policies
-        self.reject_message = guardrails_layer.policies.get(
+
+        self.reject_message = policies.get(
             "reject_message",
             "Sorry, I can only help with math or history homework questions.",
         )
+
         self.unsafe_message = policies.get(
             "unsafe_message",
             "I cannot help with unsafe requests.",
         )
+
         self.local_trivia_message = policies.get(
             "local_trivia_message",
             (
-                "Sorry, I can help with broad math or history homework topics, "
-                "but not niche local or institutional trivia."
+                "Sorry, I focus on meaningful historical topics rather than "
+                "niche institutional facts."
             ),
         )
+
         self.unsafe_patterns = self._normalize_patterns(
             policies.get("unsafe_patterns", [])
         )
+
         self.unrelated_patterns = self._normalize_patterns(
             policies.get("clearly_unrelated_patterns", [])
         )
+
         self.local_trivia_patterns = self._normalize_patterns(
             policies.get("local_trivia_patterns", [])
         )
 
+    # -----------------------------
+    # 主入口
+    # -----------------------------
     def validate(self, query: str) -> GuardrailDecision:
         normalized_query = query.strip().lower()
 
@@ -113,87 +122,47 @@ class InputGuardrail:
             return True
 
         dangerous_objects = (
-            "firecracker",
-            "explosive",
-            "bomb",
-            "molotov",
-            "poison",
-            "weapon",
-            "gun",
-            "knife",
-        )
-        dangerous_actions = (
-            "throw",
-            "set off",
-            "light",
-            "ignite",
-            "detonate",
-            "build",
-            "make",
-            "use",
-            "hurt",
-            "kill",
-            "attack",
-            "shoot",
-            "stab",
-        )
-        risky_contexts = (
-            "busy street",
-            "crowd",
-            "school",
-            "classroom",
-            "public place",
-            "someone",
-            "people",
+            "firecracker", "explosive", "bomb", "molotov",
+            "poison", "weapon", "gun", "knife",
         )
 
-        if self._contains_any(text, dangerous_objects) and self._contains_any(
-            text, dangerous_actions
-        ):
+        dangerous_actions = (
+            "throw", "set off", "light", "ignite",
+            "detonate", "build", "make", "use",
+            "hurt", "kill", "attack", "shoot", "stab",
+        )
+
+        risky_contexts = (
+            "busy street", "crowd", "school",
+            "classroom", "public place", "someone", "people",
+        )
+
+        if self._contains_any(text, dangerous_objects) and self._contains_any(text, dangerous_actions):
             return True
 
         if "what would happen if" in text and self._contains_any(text, dangerous_objects):
             return True
 
-        return self._contains_any(text, dangerous_objects) and self._contains_any(
-            text, risky_contexts
-        )
+        return self._contains_any(text, dangerous_objects) and self._contains_any(text, risky_contexts)
 
     def _is_non_homework_query(self, text: str) -> bool:
         if self._matches_any(text, self.unrelated_patterns):
             return True
 
         planning_verbs = (
-            "best way",
-            "recommend",
-            "suggest",
-            "plan",
-            "book",
-            "choose",
-            "where should i",
+            "best way", "recommend", "suggest", "plan",
+            "book", "choose", "where should i",
         )
+
         travel_terms = (
-            "travel",
-            "trip",
-            "flight",
-            "airport",
-            "hotel",
-            "vacation",
-            "holiday",
-            "restaurant",
-            "tour",
+            "travel", "trip", "flight", "airport",
+            "hotel", "vacation", "holiday", "restaurant", "tour",
         )
+
         lifestyle_terms = (
-            "movie",
-            "tv show",
-            "celebrity",
-            "shopping",
-            "buy",
-            "purchase",
-            "recipe",
-            "dating",
-            "relationship",
-            "fashion",
+            "movie", "tv show", "celebrity", "shopping",
+            "buy", "purchase", "recipe", "dating",
+            "relationship", "fashion",
         )
 
         if self._contains_any(text, planning_verbs) and (
@@ -204,67 +173,59 @@ class InputGuardrail:
 
         return self._contains_any(text, lifestyle_terms) and not self._contains_any(
             text,
-            (
-                "history",
-                "historical",
-                "math",
-                "equation",
-                "calculate",
-            ),
+            ("history", "historical", "math", "equation", "calculate"),
         )
 
+    # 关键优化：历史尺度判断
     def _is_local_trivia_query(self, text: str) -> bool:
         if self._matches_any(text, self.local_trivia_patterns):
             return True
 
-        institution_terms = (
-            "university",
-            "school",
-            "college",
-            "campus",
-            "department",
-            "institute",
-            "company",
-            "corporation",
-            "committee",
-            "office",
-        )
-        local_markers = (
-            "hong kong",
-            "hkust",
-            "my school",
-            "our school",
-            "this university",
-            "local university",
-        )
-        position_terms = (
-            "president",
-            "vice chancellor",
-            "vice-chancellor",
-            "chancellor",
-            "dean",
-            "principal",
-            "rector",
-            "headmaster",
-            "founder",
-        )
-        fact_request_terms = (
-            "who was",
-            "who is",
-            "when was",
-            "first",
-            "founded",
-            "established",
-            "created",
+        # 小范围实体（拒绝）
+        small_scope_entities = (
+            "university", "school", "college",
+            "campus", "department", "institute",
+            "company", "corporation", "office", "committee",
         )
 
+        # 大范围实体（允许）
+        large_scope_entities = (
+            "country", "nation", "empire", "kingdom",
+            "dynasty", "republic", "government",
+            "president", "prime minister",
+            "king", "queen",
+        )
+
+        position_terms = (
+            "president", "chancellor", "dean",
+            "principal", "rector", "headmaster",
+            "founder", "ceo",
+        )
+
+        fact_request_terms = (
+            "who was", "who is", "when was",
+            "first", "founded", "established", "created",
+        )
+
+        # 如果是国家/帝国级 → 放行
+        if self._contains_any(text, large_scope_entities) and not self._contains_any(text, small_scope_entities):
+            return False
+
+        # 小机构 + 职位 + fact → 拒绝
         if (
-            self._contains_any(text, institution_terms)
+            self._contains_any(text, small_scope_entities)
             and self._contains_any(text, position_terms)
             and self._contains_any(text, fact_request_terms)
         ):
             return True
 
-        return self._contains_any(text, local_markers) and self._contains_any(
-            text, institution_terms
+        # 明确本地指代
+        local_markers = (
+            "hong kong", "hkust", "my school",
+            "our school", "this university", "local university",
         )
+
+        if self._contains_any(text, local_markers) and self._contains_any(text, small_scope_entities):
+            return True
+
+        return False
