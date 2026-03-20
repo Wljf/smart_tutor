@@ -113,8 +113,8 @@ python -m smart_tutor.main
 - If a follow-up question is short, topic routing can reuse the last known subject.
 
 ## To be adress
-1. classfication（模糊边界问题修改）
-2. input_guardrail.py修改（太小的历史问题不算历史问题比如说香港科技大学的第一人校长不算历史问题）—— 仍需测试
-3. math_tutor.py超过用户水平的题目依旧回答
-4. history_tutor.py 对于让我们来谈谈关于XXX的历史问题无法解决
+1. classfication（模糊边界问题修改）✅
+2. input_guardrail.py修改（太小的历史问题不算历史问题比如说香港科技大学的第一人校长不算历史问题）—— ✅英文可以中文不行（要不要就是放过？）
+3. math_tutor.py超过用户水平的题目依旧回答 ❌，加上限制仍然错误，研究
+4. history_tutor.py 对于让我们来谈谈关于XXX的历史问题无法解决 ✅目前甚至可以解决WWI这种简写（Let we talk about the causes of WWI）
 5. 边界测试 + records
