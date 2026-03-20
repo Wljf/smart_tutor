@@ -44,52 +44,105 @@ class SmartTutorApp:
         )
         self.summarizer = ConversationSummarizer(self.llm_engine)
 
-    def handle_query(self, user_query: str) -> str:
-        self.memory.update_student_level_from_query(user_query)
+    def handle_query(self, user_query: str):
+      self.memory.update_student_level_from_query(user_query)
 
-        input_decision = self.input_guardrail.validate(user_query)
-        if not input_decision.allowed:
-            self.memory.save_turn(user_query, input_decision.response)
-            return input_decision.response
+      # ---------------- Input Guardrail ----------------
+      input_decision = self.input_guardrail.validate(user_query)
+      if not input_decision.allowed:
+          self.memory.save_turn(user_query, input_decision.response)
 
-        conversation_history = self.memory.get_transcript()
-        intent = self.intent_classifier.classify(
-            query=user_query,
-            conversation_history=conversation_history,
-        )
+          return input_decision.response, {
+              "topic": "blocked",
+              "guardrail": "blocked",
+              "decision": "reject"
+          }
 
-        if intent == "summary_request":
-            response = self.summarizer.summarize(conversation_history)
-            safe_response = self.output_guardrail.validate(
-                response=response,
-                topic=None,
-            )
-            self.memory.save_turn(user_query, safe_response)
-            return safe_response
+      conversation_history = self.memory.get_transcript()
 
-        if intent == "unrelated_query":
-            self.memory.save_turn(user_query, self.config.reject_message)
-            return self.config.reject_message
+      # ---------------- Intent ----------------
+      intent = self.intent_classifier.classify(
+          query=user_query,
+          conversation_history=conversation_history,
+      )
 
-        topic = self.topic_classifier.classify(
-            query=user_query,
-            conversation_history=conversation_history,
-            fallback_topic=self.memory.get_current_topic(),
-        )
+      if intent == "summary_request":
+          response = self.summarizer.summarize(conversation_history)
+          safe_response = self.output_guardrail.validate(
+              response=response,
+              topic=None,
+          )
 
-        tutor = self.router.route(topic)
-        response = tutor.answer(
-            query=user_query,
-            history=self.memory.get_messages(),
-            student_level=self.memory.get_student_level(),
-        )
-        safe_response = self.output_guardrail.validate(response=response, topic=topic)
+          self.memory.save_turn(user_query, safe_response)
 
-        if topic in {"math", "history"}:
-            self.memory.set_current_topic(topic)
+          return safe_response, {
+              "topic": "summary",
+              "guardrail": "pass",
+              "decision": "allow"
+          }
 
-        self.memory.save_turn(user_query, safe_response)
-        return safe_response
+      if intent == "unrelated_query":
+          self.memory.save_turn(user_query, self.config.reject_message)
+
+          return self.config.reject_message, {
+              "topic": "other",
+              "guardrail": "pass",
+              "decision": "reject"
+          }
+
+      topic = self.topic_classifier.classify(
+          query=user_query,
+          conversation_history=conversation_history,
+          fallback_topic=self.memory.get_current_topic(),
+      )
+
+      tutor = self.router.route(topic)
+
+      response = tutor.answer(
+          query=user_query,
+          history=self.memory.get_messages(),
+          student_level=self.memory.get_student_level(),
+      )
+
+      safe_response = self.output_guardrail.validate(
+          response=response,
+          topic=topic
+      )
+
+      # Memory
+      if topic in {"math", "history"}:
+          self.memory.set_current_topic(topic)
+
+      self.memory.save_turn(user_query, safe_response)
+
+      # Decision
+      if topic in {"math", "history"}:
+          decision = "allow"
+      elif topic == "unclear":
+          decision = "clarify"
+          clarify_question = (
+              "I'm not sure which subject this belongs to.\n\n"
+              "Do you mean:\n"
+              "• a math problem?\n"
+              "• a history topic?\n\n"
+              "Please clarify so I can help you better."
+          )
+
+          self.memory.save_turn(user_query, clarify_question)
+
+          return clarify_question, {
+              "topic": "unclear",
+              "guardrail": "pass",
+              "decision": "clarify"
+          }
+      else:
+          decision = "reject"
+
+      return safe_response, {
+          "topic": topic,
+          "guardrail": "pass",
+          "decision": decision
+      }
 
 
 def run_cli() -> None:
