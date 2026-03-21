@@ -44,8 +44,9 @@ class SmartTutorApp:
         )
         self.summarizer = ConversationSummarizer(self.llm_engine)
 
-    def handle_query(self, user_query: str):
+    def handle_query(self, user_query: str, student_level: str | None = None):
       self.memory.update_student_level_from_query(user_query)
+      effective_student_level = student_level or self.memory.get_student_level()
 
       # ---------------- Input Guardrail ----------------
       input_decision = self.input_guardrail.validate(user_query)
@@ -90,18 +91,20 @@ class SmartTutorApp:
               "decision": "reject"
           }
 
+      # ---------------- Topic ----------------
       topic = self.topic_classifier.classify(
           query=user_query,
           conversation_history=conversation_history,
           fallback_topic=self.memory.get_current_topic(),
       )
 
+      # ---------------- Router ----------------
       tutor = self.router.route(topic)
 
       response = tutor.answer(
           query=user_query,
           history=self.memory.get_messages(),
-          student_level=self.memory.get_student_level(),
+          student_level=effective_student_level,
       )
 
       safe_response = self.output_guardrail.validate(
@@ -109,13 +112,13 @@ class SmartTutorApp:
           topic=topic
       )
 
-      # Memory
+      # ---------------- Memory ----------------
       if topic in {"math", "history"}:
           self.memory.set_current_topic(topic)
 
       self.memory.save_turn(user_query, safe_response)
 
-      # Decision
+      # ---------------- Decision ----------------
       if topic in {"math", "history"}:
           decision = "allow"
       elif topic == "unclear":
@@ -138,6 +141,7 @@ class SmartTutorApp:
       else:
           decision = "reject"
 
+      # 🔥 最关键：返回两个值
       return safe_response, {
           "topic": topic,
           "guardrail": "pass",
