@@ -24,7 +24,13 @@ Classify the user query as exactly one label:
 - summary_request
 - unrelated_query
 
-Return only the label.
+Strict rules:
+1. Choose homework_question for normal study requests, explanations, practice, quizzes, or subject questions.
+2. Choose summary_request only if the user is asking to summarize the chat or conversation.
+3. Choose unrelated_query only if the request is clearly outside tutoring or homework help.
+4. Do not guess unrelated_query for normal school questions.
+
+Return ONLY one label.
 
 Conversation history:
 {conversation_history or "No prior conversation."}
@@ -35,8 +41,8 @@ User query:
 
         response = self.llm_engine.invoke(
             system_prompt=(
-                "You are an intent classifier for a homework tutoring assistant. "
-                "Be strict and return only one valid label."
+                "You are a strict intent classifier for a homework tutoring assistant. "
+                "Return only one valid label."
             ),
             user_prompt=prompt,
         )
@@ -51,27 +57,61 @@ User query:
             "summarize the conversation",
             "summarise the conversation",
             "summarize chat",
+            "summarise chat",
+            "give me a summary",
+            "recap our conversation",
         )
         if any(phrase in normalized_query for phrase in summary_phrases):
             return "summary_request"
 
         unrelated_signals = (
             "plan a trip",
-            "travel",
+            "travel itinerary",
             "vacation",
-            "restaurant",
-            "movie",
+            "restaurant recommendation",
+            "movie recommendation",
             "betting",
             "celebrity gossip",
+            "shopping advice",
         )
         if any(signal in normalized_query for signal in unrelated_signals):
             return "unrelated_query"
+
+        homework_signals = (
+            "explain",
+            "solve",
+            "calculate",
+            "what is",
+            "how do i solve",
+            "help me with",
+            "quiz me",
+            "practice question",
+            "practice questions",
+            "homework",
+            "assignment",
+            "causes of",
+            "effects of",
+            "why did",
+            "give me 3 questions",
+            "teach me",
+        )
+        if any(signal in normalized_query for signal in homework_signals):
+            return "homework_question"
 
         return None
 
     def _extract_label(self, raw_response: str) -> str:
         normalized = raw_response.strip().lower()
-        for label in self.VALID_LABELS:
-            if label in normalized:
-                return label
-        return "unrelated_query"
+        compact = normalized.replace("-", "_").replace(" ", "_")
+
+        if "summary_request" in compact or "summary" in normalized:
+            return "summary_request"
+
+        if "homework_question" in compact or "homework" in normalized:
+            return "homework_question"
+
+        if "unrelated_query" in compact or "unrelated" in normalized:
+            return "unrelated_query"
+
+        # Safer default: let the topic classifier decide the subject later.
+        return "homework_question"
