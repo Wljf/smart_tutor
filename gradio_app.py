@@ -18,11 +18,10 @@ SESSION_APPS: MutableMapping[str, SmartTutorApp] = {}
 
 def _build_examples():
     return [
-        ["What is 3 + 5?"],
+        ["Solve the equation: 2x + 5 = 15."],
         ["Explain the causes of World War I."],
-        ["Give me 3 practice questions on fractions."],
-        ["Quiz me on the French Revolution."],
-        ["Explain change over time"],
+        ["Find the derivative of x^2 + 3x."],
+        ["Can you summarize our conversation so far?"],
     ]
 
 
