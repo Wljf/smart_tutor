@@ -3,6 +3,8 @@
 `smart_tutor` is a modular multi-turn homework tutoring assistant with guardrails.
 It only supports math and history homework questions and rejects unrelated queries.
 
+This project is completed by CHEN(@JOrangsepha) and WAN(@Wljf).
+
 ## Architecture
 
 The runtime pipeline follows this order:
