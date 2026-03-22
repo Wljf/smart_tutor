@@ -20,7 +20,7 @@ def _build_examples():
     return [
         ["Solve the equation: 2x + 5 = 15."],
         ["Explain the causes of World War I."],
-        ["Find the derivative of x^2 + 3x."],
+        ["Let f(x) = x^x for x > 0. Compute the derivative f'(x)."],
         ["Can you summarize our conversation so far?"],
     ]
 
@@ -320,10 +320,11 @@ def build_ui():
             with gr.Row(elem_id="student-level-wrap"):
                 student_level = gr.Dropdown(
                     choices=[
-                        "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6",
-                        "Grade 7", "Grade 8", "Grade 9",
-                        "Grade 10", "Grade 11", "Grade 12",
+                        "Primary School: Grade 1", "Primary School: Grade 2", "Primary School: Grade 3", "Primary School: Grade 4", "Primary School: Grade 5", "Primary School: Grade 6",
+                        "Junior High School: Grade 7", "Junior High School: Grade 8", "Junior High School: Grade 9",
+                        "High School: Grade 10", "High School: Grade 11", "High School: Grade 12",
                         "College/University",
+                        "Unlimit"
                     ],
                     allow_custom_value=True,
                     label="Student level",
