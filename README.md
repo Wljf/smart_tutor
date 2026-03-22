@@ -23,6 +23,8 @@ The runtime pipeline follows this order:
 ```text
 smart_tutor/
   main.py
+  gradio_app.py
+  requirements.txt
   config.py
   guardrails/
     rails_config.yml
@@ -55,8 +57,8 @@ smart_tutor/
 - Topic routing:
   - `math`
   - `history`
-  - reject everything else
-- Difficulty adaptation from learner level such as `year 1` or `high school`
+  - reject everything else topic
+- Users are allowed to select their academic qualifications to personalize the tutor responses
 - Exercise generation for practice requests
 - Conversation summarization on request
 - Configurable LLM provider: OpenAI or Ollama
@@ -71,6 +73,19 @@ pip install -r requirements.txt
 ```
 
 3. Copy `.env.example` to `.env`.
+
+If you cannot get the .env file, you can follow those steps to build your own .env:
+```bash
+project_dir = YOUR PROJECT DIR
+os.makedirs(project_dir, exist_ok=True)
+with open(os.path.join(project_dir, '.env'), 'w') as f:
+    f.write('TUTOR_LLM_PROVIDER=openai\n')
+    f.write('TUTOR_MODEL=deepseek-chat\n')
+    f.write('TUTOR_TEMPERATURE=0.2\n')
+    f.write('OPENAI_API_KEY=YOUR OWN API\n')
+    f.write('OPENAI_BASE_URL=https://api.deepseek.com/v1\n')
+```
+  
 4. Configure one of the following:
 
 OpenAI mode:
@@ -96,14 +111,18 @@ Use module mode from the project root:
 ```bash
 python -m smart_tutor.main
 ```
+If you want to run our project in a web page and use our UI, please run the following command:
+
+```bash
+python -m smart_tutor.gradio_app
+```
 
 ## Example Prompts
-
-- `I am a year 1 student. What is 7 + 5?`
+- `Solve the equation: 2x + 5 = 15.`
 - `Explain the causes of World War I.`
-- `Give me 3 practice questions on fractions.`
-- `Quiz me on the French Revolution.`
-- `Summarize our conversation so far`
+- (Grade 1 Selected)`Find the derivative of x^2 + 3x.`
+- (College Selected)`7 + 5 =?`
+- `Can you summarize our conversation so far?`
 - `Plan my vacation in Japan` -> should be rejected
 
 ## Notes
@@ -111,10 +130,3 @@ python -m smart_tutor.main
 - The app uses a NeMo-style guardrail configuration file in `smart_tutor/guardrails/rails_config.yml`.
 - Conversation memory stores both user and assistant turns.
 - If a follow-up question is short, topic routing can reuse the last known subject.
-
-## To be adress
-1. classfication（模糊边界问题修改）✅
-2. input_guardrail.py修改（太小的历史问题不算历史问题比如说香港科技大学的第一人校长不算历史问题）—— ✅英文可以中文不行（要不要就是放过？）
-3. math_tutor.py超过用户水平的题目依旧回答 ❌，加上限制仍然错误，研究
-4. history_tutor.py 对于让我们来谈谈关于XXX的历史问题无法解决 ✅目前甚至可以解决WWI这种简写（Let we talk about the causes of WWI）
-5. 边界测试 + records
